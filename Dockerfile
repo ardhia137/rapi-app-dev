@@ -24,13 +24,19 @@ RUN git config --global --add safe.directory /var/www
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
+
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs
+
+RUN npm install && npm run build
 # Copy existing application directory contents
 COPY . /var/www
 
 RUN composer install --no-interaction --optimize-autoloader --no-dev
+
 
 # Copy nginx configuration
 RUN echo 'events { \n\
