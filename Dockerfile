@@ -1,6 +1,6 @@
 FROM php:8.2-fpm
 
-# Install system deps
+# Install system dependencies + PHP extensions
 RUN apt-get update && apt-get install -y \
     git \
     curl \
@@ -13,21 +13,21 @@ RUN apt-get update && apt-get install -y \
     npm \
     && docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Install composer
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copy hanya file composer dulu untuk caching yang benar
+# Copy composer.json dulu supaya caching lebih cepat
 COPY composer.json composer.lock ./
 
 # Install dependencies Laravel
 RUN composer install --no-dev --optimize-autoloader
 
-# Copy seluruh source code
+# Copy semua source code
 COPY . .
 
-# Build Tailwind / npm
+# Build Tailwind
 RUN npm install && npm run build
 
 # Set permission
