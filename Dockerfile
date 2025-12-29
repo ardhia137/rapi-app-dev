@@ -1,3 +1,4 @@
+# Dockerfile
 FROM php:8.2-fpm
 
 # Install system dependencies + PHP extensions
@@ -18,7 +19,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copy composer.json dulu supaya caching lebih cepat
+# Copy composer files dulu supaya caching lebih cepat
 COPY composer.json composer.lock ./
 
 # Install dependencies Laravel
