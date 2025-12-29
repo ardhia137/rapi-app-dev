@@ -30,6 +30,8 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # Copy existing application directory contents
 COPY . /var/www
 
+RUN composer install --no-interaction --optimize-autoloader --no-dev
+
 # Copy nginx configuration
 RUN echo 'events { \n\
     worker_connections 1024; \n\
@@ -90,9 +92,8 @@ stderr_logfile=/dev/stderr \n\
 stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/supervisord.conf
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage \
-    && chmod -R 755 /var/www/bootstrap/cache
+RUN chown -R www-data:www-data /var/www
+RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
 # Expose port 80
 EXPOSE 80
