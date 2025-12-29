@@ -42,7 +42,7 @@ http { \n\
     default_type application/octet-stream; \n\
 \n\
     server { \n\
-        listen 80; \n\
+        listen 4567; \n\
         index index.php index.html; \n\
         server_name localhost; \n\
         root /var/www/public; \n\
@@ -95,8 +95,8 @@ stderr_logfile_maxbytes=0' > /etc/supervisor/conf.d/supervisord.conf
 RUN chown -R www-data:www-data /var/www
 RUN chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
-# Expose port 80
-EXPOSE 80
+# Expose port 4567
+EXPOSE 4567
 
 # Start supervisor
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
