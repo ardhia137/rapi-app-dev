@@ -57,6 +57,8 @@ http { \n\
             include fastcgi_params; \n\
             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name; \n\
             fastcgi_param PATH_INFO $fastcgi_path_info; \n\
+            fastcgi_read_timeout 300; \n\
+            fastcgi_send_timeout 300; \n\
         } \n\
 \n\
         location ~ /\.ht { \n\
