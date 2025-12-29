@@ -3,9 +3,6 @@ FROM php:8.3-fpm
 # Set working directory
 WORKDIR /var/www
 
-# Fix git safe directory
-RUN git config --global --add safe.directory /var/www
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git \
@@ -20,6 +17,9 @@ RUN apt-get update && apt-get install -y \
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Fix git safe directory
+RUN git config --global --add safe.directory /var/www
 
 # Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
