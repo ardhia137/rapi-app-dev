@@ -39,19 +39,22 @@ RUN if ! grep -q "APP_KEY=base64:" .env; then \
     php artisan key:generate; \
     fi
 
-# Install dependencies
-RUN composer install --no-interaction --optimize-autoloader --no-dev
+# Install dependencies (without --no-dev untuk include dev packages seperti Pail)
+RUN composer install --no-interaction --optimize-autoloader
 
 # Install npm dependencies and build assets
 RUN npm install && npm run build
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www \
-    && chmod -R 755 /var/www/storage \
-    && chmod -R 755 /var/www/bootstrap/cache
+    && chmod -R 775 /var/www/storage \
+    && chmod -R 775 /var/www/bootstrap/cache
 
 # Create startup script
 RUN echo '#!/bin/bash\n\
+# Fix permissions setiap start\n\
+chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache\n\
+chmod -R 775 /var/www/storage /var/www/bootstrap/cache\n\
 php artisan config:cache\n\
 php artisan route:cache\n\
 php artisan view:cache\n\
