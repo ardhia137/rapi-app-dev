@@ -40,10 +40,14 @@ RUN if ! grep -q "APP_KEY=base64:" .env; then \
     fi
 
 # Install dependencies (without --no-dev untuk include dev packages seperti Pail)
-RUN composer install --no-interaction --optimize-autoloader
+RUN composer install --no-interaction --optimize-autoloader --ignore-platform-reqs || \
+    composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
 
 # Install npm dependencies and build assets
 RUN npm install && npm run build
+
+# Link storage untuk public assets
+RUN php artisan storage:link || true
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www \
