@@ -20,10 +20,9 @@ COPY . .
 # Install dependencies
 RUN composer install
 RUN npm install
-RUN npm run build
 
 # Port 4567 untuk Laravel, 5173 untuk Vite HMR
 EXPOSE 4567 5173
 
 # Jalankan server
-CMD php artisan serve --host=0.0.0.0 --port=4567 & npm run build -- --host
+CMD php artisan serve --host=0.0.0.0 --port=4567 & npm run dev -- --host
