@@ -5,8 +5,5 @@ services:
     container_name: laravel_app
     ports:
       - "4567:4567"
-      - "5173:5173"
-    volumes:
-      - .:/var/www
     extra_hosts:
       - "host.docker.internal:host-gateway"
