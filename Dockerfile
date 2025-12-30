@@ -34,20 +34,22 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 # Copy environment file dari .env.docker
 COPY .env.docker .env
 
-# Generate APP_KEY jika belum ada
-RUN if ! grep -q "APP_KEY=base64:" .env; then \
-    php artisan key:generate; \
-    fi
+# Generate APP_KEY
+RUN php artisan key:generate --force
 
 # Install dependencies (without --no-dev untuk include dev packages seperti Pail)
 RUN composer install --no-interaction --optimize-autoloader --ignore-platform-reqs || \
     composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
 
 # Install npm dependencies and build assets
-RUN npm install && npm run build
+RUN npm install
+RUN npm run build
 
 # Link storage untuk public assets
 RUN php artisan storage:link || true
+RUN php artisan key:generate --force
+# Set permissions untuk public/build
+RUN chmod -R 755 /var/www/public
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www \
