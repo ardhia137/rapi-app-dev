@@ -26,4 +26,4 @@ RUN npm run build
 EXPOSE 4567 5173
 
 # Jalankan server
-CMD php artisan serve --host=0.0.0.0 --port=4567 
+CMD php artisan serve --host=0.0.0.0 --port=4567 & npm run build -- --host
