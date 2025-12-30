@@ -61,6 +61,7 @@ RUN echo '#!/bin/bash\n\
 # Fix permissions setiap start\n\
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache\n\
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache\n\
+rm public/hot\n\
 php artisan config:cache\n\
 php artisan route:cache\n\
 php artisan view:cache\n\
