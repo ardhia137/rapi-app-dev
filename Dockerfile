@@ -1,28 +1,63 @@
 FROM php:8.3-fpm
 
-# Install dependencies sistem
+# Install dependencies
 RUN apt-get update && apt-get install -y \
-    git curl libpng-dev libonig-dev libxml2-dev zip unzip
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    nginx \
+    nodejs \
+    npm
 
-# Install PHP extensions untuk MySQL
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Install PHP extensions
 RUN docker-php-ext-install pdo_mysql mbstring exif pcntl bcmath gd
 
-# Copy Composer
+# Get Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Install Node.js & NPM (untuk npm run dev)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
-    apt-get install -y nodejs
-
+# Set working directory
 WORKDIR /var/www
-COPY . .
+
+# Copy existing application directory
+COPY . /var/www
+
+# Copy nginx configuration
+COPY docker/nginx.conf /etc/nginx/sites-available/default
+
+# Copy environment file dari .env.docker
+COPY .env.docker .env
+
+# Generate APP_KEY jika belum ada
+RUN if ! grep -q "APP_KEY=base64:" .env; then \
+    php artisan key:generate; \
+    fi
 
 # Install dependencies
-RUN composer install
-RUN npm install
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Port 4567 untuk Laravel, 5173 untuk Vite HMR
-EXPOSE 4567 5173
+# Install npm dependencies and build assets
+RUN npm install && npm run build
 
-# Jalankan server
-CMD php artisan serve --host=0.0.0.0 --port=4567 & npm run dev -- --host
+# Set permissions
+RUN chown -R www-data:www-data /var/www \
+    && chmod -R 755 /var/www/storage \
+    && chmod -R 755 /var/www/bootstrap/cache
+
+# Create startup script
+RUN echo '#!/bin/bash\n\
+php artisan config:cache\n\
+php artisan route:cache\n\
+php artisan view:cache\n\
+php-fpm -D\n\
+nginx -g "daemon off;"' > /start.sh && chmod +x /start.sh
+
+EXPOSE 4567
+
+CMD ["/start.sh"]
