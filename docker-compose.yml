@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile
     container_name: laravel_staging
     ports:
-      - "4567:4567"
+      - "4567:80"
     volumes:
       - ./storage:/var/www/storage
       - ./bootstrap/cache:/var/www/bootstrap/cache
