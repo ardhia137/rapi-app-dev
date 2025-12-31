@@ -68,6 +68,11 @@ RUN echo '#!/bin/bash\n\
 # Fix permissions setiap start\n\
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache\n\
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache\n\
+# Copy manifest if exists in .vite folder\n\
+if [ -f /var/www/public/build/.vite/manifest.json ]; then\n\
+    cp /var/www/public/build/.vite/manifest.json /var/www/public/build/manifest.json\n\
+    chown www-data:www-data /var/www/public/build/manifest.json\n\
+fi\n\
 php artisan config:cache\n\
 php artisan route:cache\n\
 php artisan view:cache\n\
