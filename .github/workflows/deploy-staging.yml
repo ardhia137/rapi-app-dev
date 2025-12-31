@@ -183,12 +183,19 @@ jobs:
             
             echo "Project directory: $(pwd)"
             
+            # Stash any local changes
+            echo "Stashing local changes..."
+            git stash
+            
             # Pull latest code
             echo "Pulling latest code from dev branch..."
             git pull origin dev || {
               echo "ERROR: Git pull failed"
               exit 1
             }
+            
+            # Apply stashed changes back (optional)
+            # git stash pop
             
             # Make build script executable
             if [ -f build.sh ]; then
