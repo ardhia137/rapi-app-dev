@@ -18,11 +18,15 @@ jobs:
       run: |
         curl -fsSL https://tailscale.com/install.sh | sh
 
-    - name: Connect to Tailscale
-      run: |
-        sudo tailscale up \
-          --authkey=${{ secrets.TS_AUTH_KEY }} \
-          --hostname=github-actions-ci
+    - name: Debug TS_AUTH_KEY exists
+  run: |
+    if [ -z "${{ secrets.TS_AUTH_KEY }}" ]; then
+      echo "TS_AUTH_KEY is EMPTY"
+      exit 1
+    else
+      echo "TS_AUTH_KEY is set"
+    fi
+
 
     - name: Setup SSH
       run: |
