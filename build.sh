@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "🚀 Building Laravel Docker Staging..."
+echo ""
 
 # Create docker directory if not exists
 mkdir -p docker
@@ -21,6 +22,11 @@ fi
 echo "🛑 Stopping existing container..."
 docker-compose down
 
+# Clean up old build artifacts di host (optional)
+echo "🧹 Cleaning old build artifacts..."
+rm -rf public/build 2>/dev/null || true
+rm -rf node_modules/.vite 2>/dev/null || true
+
 # Build and start
 echo "🔨 Building Docker image..."
 docker-compose build --no-cache
@@ -29,13 +35,61 @@ echo "🚀 Starting container..."
 docker-compose up -d
 
 echo "⏳ Waiting for container to be ready..."
+sleep 8
+
+echo ""
+echo "🔑 Generating APP_KEY if needed..."
+docker exec laravel_staging php artisan key:generate --force
+
+echo ""
+echo "📦 Building Vite assets..."
+docker exec laravel_staging npm run build
+
+echo ""
+echo "✅ Verifying manifest.json..."
+if docker exec laravel_staging test -f /var/www/public/build/manifest.json; then
+    echo "✅ manifest.json found!"
+else
+    echo "⚠️  manifest.json not found, retrying build..."
+    docker exec laravel_staging npm install
+    docker exec laravel_staging npm run build
+fi
+
+echo ""
+echo "🔧 Fixing permissions..."
+docker exec laravel_staging chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache /var/www/public/build 2>/dev/null || true
+docker exec laravel_staging chmod -R 775 /var/www/storage /var/www/bootstrap/cache
+
+echo ""
+echo "🧹 Clearing Laravel cache..."
+docker exec laravel_staging php artisan config:clear
+docker exec laravel_staging php artisan view:clear
+docker exec laravel_staging php artisan cache:clear
+
+echo ""
+echo "🔄 Final restart..."
+docker-compose restart
+
+echo ""
+echo "⏳ Waiting for final startup..."
 sleep 5
 
 echo ""
-echo "✅ Laravel staging is running at http://localhost:4567"
-echo "📊 Check logs: docker-compose logs -f"
-echo "🔑 APP_KEY otomatis di-generate jika belum ada"
+echo "=========================================="
+echo "✅ Laravel staging is ready!"
+echo "=========================================="
 echo ""
-echo "Database Configuration:"
-echo "  Host: host.docker.internal (MySQL di laptop Anda)"
-echo "  Update DB credentials di .env.docker sebelum build"
+echo "📍 Access URL:"
+echo "   Local:     http://localhost:4567"
+echo "   Tailscale: http://YOUR_TAILSCALE_IP:4567"
+echo ""
+echo "📊 Useful commands:"
+echo "   Logs:      docker-compose logs -f"
+echo "   Enter:     docker exec -it laravel_staging bash"
+echo "   Rebuild:   ./build.sh"
+echo "   Stop:      docker-compose down"
+echo ""
+echo "🗄️  Database Configuration:"
+echo "   Host: host.docker.internal"
+echo "   Update credentials in .env.docker before build"
+echo ""
