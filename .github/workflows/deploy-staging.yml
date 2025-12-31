@@ -99,15 +99,28 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           
-          # Save private key
+          # Save private key with proper newlines
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          
+          # Ensure proper line endings
+          sed -i 's/\r$//' ~/.ssh/id_rsa
+          
+          # Ensure key ends with newline
+          echo "" >> ~/.ssh/id_rsa
+          
           chmod 600 ~/.ssh/id_rsa
+          
+          # Debug: Check key format (first and last line only)
+          echo "Checking SSH key format..."
+          head -n 1 ~/.ssh/id_rsa
+          tail -n 1 ~/.ssh/id_rsa
           
           # Verify key format
           if ssh-keygen -l -f ~/.ssh/id_rsa; then
             echo "SSH private key is valid"
           else
             echo "ERROR: SSH private key is invalid"
+            echo "Key might be corrupted or in wrong format"
             exit 1
           fi
           
@@ -117,7 +130,6 @@ jobs:
           
           if [ $? -eq 0 ]; then
             echo "Successfully added host key"
-            cat ~/.ssh/known_hosts
           else
             echo "WARNING: ssh-keyscan failed, using less secure method"
             # Fallback: disable strict host checking
@@ -127,6 +139,16 @@ jobs:
             echo "  Port ${{ secrets.SSH_PORT }}" >> ~/.ssh/config
           fi
 
+      - name: Debug SSH Authentication
+        run: |
+          echo "Testing SSH authentication with verbose output..."
+          ssh -vvv -p ${{ secrets.SSH_PORT }} \
+            -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=no \
+            -i ~/.ssh/id_rsa \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "echo 'Connection successful'" 2>&1 | grep -E "(debug|Offering|Authentications|publickey)" || true
+
       - name: Test SSH connection
         run: |
           echo "Testing SSH connection..."
@@ -134,6 +156,7 @@ jobs:
             -o ConnectTimeout=10 \
             -o ServerAliveInterval=5 \
             -o ServerAliveCountMax=3 \
+            -i ~/.ssh/id_rsa \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
             "echo 'SSH connection successful'; whoami; pwd"
 
@@ -144,6 +167,7 @@ jobs:
             -o ConnectTimeout=30 \
             -o ServerAliveInterval=5 \
             -o ServerAliveCountMax=3 \
+            -i ~/.ssh/id_rsa \
             ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
             
