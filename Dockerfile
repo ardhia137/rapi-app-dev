@@ -11,7 +11,9 @@ RUN apt-get update && apt-get install -y \
     unzip \
     nginx \
     nodejs \
-    npm
+    npm \
+    nano \
+    vim
 
 # Clear cache
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -45,9 +47,14 @@ RUN composer install --no-interaction --optimize-autoloader --ignore-platform-re
 RUN npm install
 RUN npm run build
 
+# Copy manifest.json ke lokasi yang benar (Vite 7 menyimpan di .vite folder)
+RUN if [ -f /var/www/public/build/.vite/manifest.json ]; then \
+    cp /var/www/public/build/.vite/manifest.json /var/www/public/build/manifest.json; \
+    fi
+
 # Link storage untuk public assets
 RUN php artisan storage:link || true
-RUN php artisan key:generate --force
+
 # Set permissions untuk public/build
 RUN chmod -R 755 /var/www/public
 
@@ -61,7 +68,6 @@ RUN echo '#!/bin/bash\n\
 # Fix permissions setiap start\n\
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache\n\
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache\n\
-rm public/hot\n\
 php artisan config:cache\n\
 php artisan route:cache\n\
 php artisan view:cache\n\

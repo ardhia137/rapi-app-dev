@@ -13,7 +13,7 @@ export default defineConfig({
     // Gunakan relative path untuk assets
     base: '/',
     build: {
-        manifest: true,
+        manifest: 'manifest.json', // Simpan manifest di root build folder
         outDir: 'public/build',
         rollupOptions: {
             output: {
