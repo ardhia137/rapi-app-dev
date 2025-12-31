@@ -35,20 +35,154 @@ jobs:
             --hostname=github-actions-ci \
             --accept-dns=false
 
+      - name: Wait for Tailscale connection
+        run: |
+          echo "Waiting for Tailscale to be fully connected..."
+          for i in {1..30}; do
+            if sudo tailscale status | grep -q "100."; then
+              echo "Tailscale connected successfully!"
+              sudo tailscale status
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Tailscale connection timeout"
+              exit 1
+            fi
+            echo "Waiting for connection... ($i/30)"
+            sleep 2
+          done
+
+      - name: Verify SSH secrets
+        run: |
+          echo "Verifying SSH configuration..."
+          if [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "ERROR: SSH_PRIVATE_KEY is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_HOST }}" ]; then
+            echo "ERROR: SSH_HOST is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_PORT }}" ]; then
+            echo "ERROR: SSH_PORT is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.SSH_USER }}" ]; then
+            echo "ERROR: SSH_USER is not set"
+            exit 1
+          fi
+          echo "All SSH secrets are configured"
+          echo "Target: ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.SSH_PORT }}"
+
+      - name: Test server connectivity
+        run: |
+          echo "Testing connectivity to ${{ secrets.SSH_HOST }}..."
+          
+          # Test ping (optional, might not work with some firewalls)
+          if ping -c 3 -W 5 ${{ secrets.SSH_HOST }}; then
+            echo "Host is pingable"
+          else
+            echo "Host is not pingable (this might be normal if ICMP is blocked)"
+          fi
+          
+          # Test port connectivity
+          echo "Testing port ${{ secrets.SSH_PORT }}..."
+          if timeout 10 bash -c "cat < /dev/null > /dev/tcp/${{ secrets.SSH_HOST }}/${{ secrets.SSH_PORT }}"; then
+            echo "Port ${{ secrets.SSH_PORT }} is accessible"
+          else
+            echo "ERROR: Cannot connect to port ${{ secrets.SSH_PORT }}"
+            exit 1
+          fi
+
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          
+          # Save private key
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+          
+          # Verify key format
+          if ssh-keygen -l -f ~/.ssh/id_rsa; then
+            echo "SSH private key is valid"
+          else
+            echo "ERROR: SSH private key is invalid"
+            exit 1
+          fi
+          
+          # Get host key
+          echo "Fetching SSH host key..."
+          ssh-keyscan -p ${{ secrets.SSH_PORT }} -T 10 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>&1
+          
+          if [ $? -eq 0 ]; then
+            echo "Successfully added host key"
+            cat ~/.ssh/known_hosts
+          else
+            echo "WARNING: ssh-keyscan failed, using less secure method"
+            # Fallback: disable strict host checking
+            cat >> ~/.ssh/config << EOL
+            Host ${{ secrets.SSH_HOST }}
+              StrictHostKeyChecking no
+              UserKnownHostsFile=/dev/null
+              Port ${{ secrets.SSH_PORT }}
+            EOL
+          fi
+
+      - name: Test SSH connection
+        run: |
+          echo "Testing SSH connection..."
+          ssh -p ${{ secrets.SSH_PORT }} \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=5 \
+            -o ServerAliveCountMax=3 \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "echo 'SSH connection successful'; whoami; pwd"
 
       - name: Deploy to Server
         run: |
+          echo "Starting deployment..."
           ssh -p ${{ secrets.SSH_PORT }} \
-          ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+            -o ConnectTimeout=30 \
+            -o ServerAliveInterval=5 \
+            -o ServerAliveCountMax=3 \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
             set -e
-            cd coba_cicd/rapi-app-dev
-            git pull origin dev
-            chmod +x build.sh
-            ./build.sh
+            
+            echo "=== Deployment Script Started ==="
+            echo "Current user: $(whoami)"
+            echo "Current directory: $(pwd)"
+            
+            # Navigate to project directory
+            cd coba_cicd/rapi-app-dev || {
+              echo "ERROR: Project directory not found"
+              exit 1
+            }
+            
+            echo "Project directory: $(pwd)"
+            
+            # Pull latest code
+            echo "Pulling latest code from dev branch..."
+            git pull origin dev || {
+              echo "ERROR: Git pull failed"
+              exit 1
+            }
+            
+            # Make build script executable
+            if [ -f build.sh ]; then
+              chmod +x build.sh
+              echo "Running build script..."
+              ./build.sh
+            else
+              echo "ERROR: build.sh not found"
+              exit 1
+            fi
+            
+            echo "=== Deployment Completed Successfully ==="
           EOF
+
+      - name: Disconnect Tailscale
+        if: always()
+        run: |
+          echo "Disconnecting from Tailscale..."
+          sudo tailscale down || true
