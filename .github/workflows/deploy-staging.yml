@@ -121,12 +121,10 @@ jobs:
           else
             echo "WARNING: ssh-keyscan failed, using less secure method"
             # Fallback: disable strict host checking
-            cat >> ~/.ssh/config << EOL
-            Host ${{ secrets.SSH_HOST }}
-              StrictHostKeyChecking no
-              UserKnownHostsFile=/dev/null
-              Port ${{ secrets.SSH_PORT }}
-            EOL
+            echo "Host ${{ secrets.SSH_HOST }}" >> ~/.ssh/config
+            echo "  StrictHostKeyChecking no" >> ~/.ssh/config
+            echo "  UserKnownHostsFile=/dev/null" >> ~/.ssh/config
+            echo "  Port ${{ secrets.SSH_PORT }}" >> ~/.ssh/config
           fi
 
       - name: Test SSH connection
