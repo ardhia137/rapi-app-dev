@@ -1,0 +1,43 @@
+name: Deploy Laravel Staging
+
+on:
+  push:
+    branches:
+      - dev
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Tailscale
+      run: |
+        curl -fsSL https://tailscale.com/install.sh | sh
+
+    - name: Connect to Tailscale
+      run: |
+        sudo tailscale up \
+          --authkey=${{ secrets.TS_AUTH_KEY }} \
+          --hostname=github-actions-ci
+
+    - name: Setup SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+    - name: Deploy to Server
+      run: |
+        ssh -p ${{ secrets.SSH_PORT }} \
+        ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'EOF'
+          set -e
+          cd coba_cicd/rapi-app-dev
+          git pull origin dev
+          chmod +x build.sh
+          ./build.sh
+        EOF
