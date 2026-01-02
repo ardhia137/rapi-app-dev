@@ -46,6 +46,13 @@ echo "📦 Building Vite assets..."
 docker exec laravel_staging npm run build
 
 echo ""
+echo "🧹 Clearing Laravel cache after build..."
+docker exec laravel_staging php artisan config:clear
+docker exec laravel_staging php artisan view:clear
+docker exec laravel_staging php artisan cache:clear
+docker exec laravel_staging php artisan route:clear
+
+echo ""
 echo "✅ Verifying manifest.json..."
 if docker exec laravel_staging test -f /var/www/public/build/manifest.json; then
     echo "✅ manifest.json found!"

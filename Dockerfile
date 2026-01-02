@@ -43,14 +43,20 @@ RUN php artisan key:generate --force
 RUN composer install --no-interaction --optimize-autoloader --ignore-platform-reqs || \
     composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
 
-# Install npm dependencies and build assets
+# Install npm dependencies and build assets for PRODUCTION
 RUN npm install
-RUN npm run build
+RUN NODE_ENV=production npm run build
 
 # Copy manifest.json ke lokasi yang benar (Vite 7 menyimpan di .vite folder)
 RUN if [ -f /var/www/public/build/.vite/manifest.json ]; then \
     cp /var/www/public/build/.vite/manifest.json /var/www/public/build/manifest.json; \
     fi
+
+# Clear all caches after build
+RUN php artisan config:clear && \
+    php artisan view:clear && \
+    php artisan cache:clear && \
+    php artisan route:clear
 
 # Link storage untuk public assets
 RUN php artisan storage:link || true
