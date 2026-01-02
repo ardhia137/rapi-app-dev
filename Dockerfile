@@ -36,27 +36,27 @@ COPY docker/nginx.conf /etc/nginx/sites-available/default
 # Copy environment file dari .env.docker
 COPY .env.docker .env
 
-# Generate APP_KEY
-RUN php artisan key:generate --force
-
 # Install dependencies (without --no-dev untuk include dev packages seperti Pail)
 RUN composer install --no-interaction --optimize-autoloader --ignore-platform-reqs || \
     composer install --no-interaction --optimize-autoloader --no-dev --ignore-platform-reqs
 
 # Install npm dependencies and build assets for PRODUCTION
 RUN npm install
-RUN NODE_ENV=production npm run build
 
-# Copy manifest.json ke lokasi yang benar (Vite 7 menyimpan di .vite folder)
-RUN if [ -f /var/www/public/build/.vite/manifest.json ]; then \
-    cp /var/www/public/build/.vite/manifest.json /var/www/public/build/manifest.json; \
-    fi
+# Build Vite assets
+RUN npm run build
+
+# Debug: Check if build files exist
+RUN echo "=== Checking Vite build output ===" && \
+    ls -la /var/www/public/build/ || echo "Build directory not found" && \
+    ls -la /var/www/public/build/.vite/ || echo ".vite directory not found" && \
+    cat /var/www/public/build/manifest.json || echo "manifest.json not found"
+
+# Generate APP_KEY after build
+RUN php artisan key:generate --force
 
 # Clear all caches after build
-RUN php artisan config:clear && \
-    php artisan view:clear && \
-    php artisan cache:clear && \
-    php artisan route:clear
+RUN php artisan optimize:clear
 
 # Link storage untuk public assets
 RUN php artisan storage:link || true

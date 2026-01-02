@@ -47,15 +47,19 @@ docker exec laravel_staging npm run build
 
 echo ""
 echo "🧹 Clearing Laravel cache after build..."
-docker exec laravel_staging php artisan config:clear
-docker exec laravel_staging php artisan view:clear
-docker exec laravel_staging php artisan cache:clear
-docker exec laravel_staging php artisan route:clear
+docker exec laravel_staging php artisan optimize:clear
+docker exec laravel_staging php artisan config:cache
+docker exec laravel_staging php artisan view:cache
 
 echo ""
 echo "✅ Verifying manifest.json..."
 if docker exec laravel_staging test -f /var/www/public/build/manifest.json; then
     echo "✅ manifest.json found!"
+    echo "📄 Manifest content:"
+    docker exec laravel_staging cat /var/www/public/build/manifest.json
+    echo ""
+    echo "📂 Build directory contents:"
+    docker exec laravel_staging ls -la /var/www/public/build/
 else
     echo "⚠️  manifest.json not found, retrying build..."
     docker exec laravel_staging npm install
