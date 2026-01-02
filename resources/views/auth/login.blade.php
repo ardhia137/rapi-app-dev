@@ -71,7 +71,7 @@
                         alt="Logo RAPI PVC">
                 </div>
 
-                <h1 class="text-4xl font-bold mb-4">RAPI testinga</h1>
+                <h1 class="text-4xl font-bold mb-4">RAPI PVC</h1>
                 <p class="text-lg text-indigo-100 mb-8">Sistem Manajemen Keuangan</p>
 
                 <div class="space-y-4 text-left">
