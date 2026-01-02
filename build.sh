@@ -77,10 +77,20 @@ docker exec laravel_staging chown -R www-data:www-data /var/www/storage /var/www
 docker exec laravel_staging chmod -R 775 /var/www/storage /var/www/bootstrap/cache
 
 echo ""
-echo "🧹 Clearing Laravel cache..."
-docker exec laravel_staging php artisan config:clear
-docker exec laravel_staging php artisan view:clear
-docker exec laravel_staging php artisan cache:clear
+echo "🔍 Verifying hot file is removed..."
+if docker exec laravel_staging test -f /var/www/public/hot; then
+    echo "⚠️  WARNING: hot file still exists! Removing it..."
+    docker exec laravel_staging rm -f /var/www/public/hot
+else
+    echo "✅ No hot file found (correct for production)"
+fi
+
+echo ""
+echo "🔄 Final cache refresh for production..."
+docker exec laravel_staging php artisan optimize:clear
+docker exec laravel_staging php artisan config:cache
+docker exec laravel_staging php artisan route:cache
+docker exec laravel_staging php artisan view:cache
 
 echo ""
 echo "🔄 Final restart..."
