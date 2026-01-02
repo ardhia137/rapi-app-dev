@@ -45,10 +45,15 @@ echo ""
 echo "📦 Building Vite assets..."
 docker exec laravel_staging npm run build
 
+# Remove hot file to prevent Vite dev server detection
+echo "🗑️  Removing hot file..."
+docker exec laravel_staging rm -f /var/www/public/hot
+
 echo ""
 echo "🧹 Clearing Laravel cache after build..."
 docker exec laravel_staging php artisan optimize:clear
 docker exec laravel_staging php artisan config:cache
+docker exec laravel_staging php artisan route:cache
 docker exec laravel_staging php artisan view:cache
 
 echo ""

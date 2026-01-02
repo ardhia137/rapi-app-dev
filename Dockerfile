@@ -46,6 +46,9 @@ RUN npm install
 # Build Vite assets
 RUN npm run build
 
+# IMPORTANT: Remove hot file to prevent Vite dev server detection
+RUN rm -f /var/www/public/hot
+
 # Debug: Check if build files exist
 RUN echo "=== Checking Vite build output ===" && \
     ls -la /var/www/public/build/ || echo "Build directory not found" && \
@@ -57,6 +60,11 @@ RUN php artisan key:generate --force
 
 # Clear all caches after build
 RUN php artisan optimize:clear
+
+# Cache configuration for production (AFTER clearing and AFTER build)
+RUN php artisan config:cache && \
+    php artisan route:cache && \
+    php artisan view:cache
 
 # Link storage untuk public assets
 RUN php artisan storage:link || true
@@ -74,14 +82,9 @@ RUN echo '#!/bin/bash\n\
 # Fix permissions setiap start\n\
 chown -R www-data:www-data /var/www/storage /var/www/bootstrap/cache\n\
 chmod -R 775 /var/www/storage /var/www/bootstrap/cache\n\
-# Copy manifest if exists in .vite folder\n\
-if [ -f /var/www/public/build/.vite/manifest.json ]; then\n\
-    cp /var/www/public/build/.vite/manifest.json /var/www/public/build/manifest.json\n\
-    chown www-data:www-data /var/www/public/build/manifest.json\n\
-fi\n\
-php artisan config:cache\n\
-php artisan route:cache\n\
-php artisan view:cache\n\
+# Remove hot file if exists (prevent Vite dev server detection)\n\
+rm -f /var/www/public/hot\n\
+# DO NOT cache config here - use pre-built cache from Dockerfile\n\
 php-fpm -D\n\
 nginx -g "daemon off;"' > /start.sh && chmod +x /start.sh
 
