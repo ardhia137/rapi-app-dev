@@ -336,62 +336,64 @@ class InvoiceController extends Controller
                 // optional: log error
             }
 
-            // Update poin customer
+            // ✅ Update poin customer (OPS I A: paid = +1 poin)
             $isNowPaid = $invoice->status_pembayaran === 'paid';
-            $oldEarnedPoints = $wasPaid ? intdiv((int) round($oldGrandTotal), 100000) : 0;
-            $newEarnedPoints = $isNowPaid ? intdiv((int) round($grandTotal), 100000) : 0;
 
             try {
+                // helper kecil biar aman saat point null
+                $ensurePointNotNull = function ($customer) {
+                    if ($customer && $customer->point === null) {
+                        $customer->point = 0;
+                        $customer->save();
+                    }
+                };
+
+                // CASE 1: Customer berubah
                 if ($oldCustomerId !== $invoice->customer_id) {
-                    if ($oldEarnedPoints > 0 && $oldCustomerId) {
+
+                    // kalau dulu PAID => customer lama -1
+                    if ($wasPaid && $oldCustomerId) {
                         $oldCustomer = \App\Models\Customer::find($oldCustomerId);
                         if ($oldCustomer) {
+                            $ensurePointNotNull($oldCustomer);
                             $curr = (int) ($oldCustomer->point ?? 0);
-                            $oldCustomer->update(['point' => max(0, $curr - $oldEarnedPoints)]);
+                            $oldCustomer->update(['point' => max(0, $curr - 1)]);
                         }
                     }
-                    if ($newEarnedPoints > 0 && $invoice->customer_id) {
+
+                    // kalau sekarang PAID => customer baru +1
+                    if ($isNowPaid && $invoice->customer_id) {
                         $newCustomer = \App\Models\Customer::find($invoice->customer_id);
                         if ($newCustomer) {
-                            if ($newCustomer->point === null) {
-                                $newCustomer->point = 0;
-                                $newCustomer->save();
-                            }
-                            $newCustomer->increment('point', $newEarnedPoints);
+                            $ensurePointNotNull($newCustomer);
+                            $newCustomer->increment('point', 1);
                         }
                     }
                 } else {
+                    // CASE 2: Customer sama, status pembayaran berubah / tetap
                     $customer = \App\Models\Customer::find($invoice->customer_id);
                     if ($customer) {
-                        if ($customer->point === null) {
-                            $customer->point = 0;
-                            $customer->save();
+                        $ensurePointNotNull($customer);
+
+                        // unpaid -> paid : +1
+                        if ($isNowPaid && !$wasPaid) {
+                            $customer->increment('point', 1);
                         }
 
-                        if ($isNowPaid && $wasPaid) {
-                            $delta = $newEarnedPoints - $oldEarnedPoints;
-                            if ($delta !== 0) {
-                                if ($delta > 0) {
-                                    $customer->increment('point', $delta);
-                                } else {
-                                    $curr = (int) ($customer->point ?? 0);
-                                    $customer->update(['point' => max(0, $curr + $delta)]);
-                                }
-                            }
-                        } elseif ($isNowPaid && !$wasPaid) {
-                            if ($newEarnedPoints > 0) {
-                                $customer->increment('point', $newEarnedPoints);
-                            }
-                        } elseif (!$isNowPaid && $wasPaid) {
-                            if ($oldEarnedPoints > 0) {
-                                $curr = (int) ($customer->point ?? 0);
-                                $customer->update(['point' => max(0, $curr - $oldEarnedPoints)]);
-                            }
+                        // paid -> bukan paid : -1
+                        if (!$isNowPaid && $wasPaid) {
+                            $curr = (int) ($customer->point ?? 0);
+                            $customer->update(['point' => max(0, $curr - 1)]);
                         }
+
+                        // paid -> paid : tidak ada perubahan poin
+                        // unpaid -> unpaid : tidak ada perubahan poin
                     }
                 }
             } catch (\Throwable $e) {
+                // optional: log error
             }
+
 
             $newValues = $invoice->only([
                 'customer_id',
